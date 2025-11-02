@@ -1,66 +1,30 @@
+import OpenAI from "openai";
+
+const client = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
 export async function POST(req) {
   try {
-    // Log to confirm function runs
-    console.log("✅ API route reached");
+    const { prompt } = await req.json();
 
-    // Log if the API key exists
-    const apiKeyExists = !!process.env.OPENAI_API_KEY;
-    console.log("🔑 OPENAI_API_KEY exists:", apiKeyExists);
-
-    if (!apiKeyExists) {
-      return new Response(
-        JSON.stringify({
-          error: "Missing OpenAI API Key on server",
-        }),
-        { status: 500 }
-      );
+    if (!prompt) {
+      return new Response(JSON.stringify({ error: "No prompt provided" }), { status: 400 });
     }
 
-    // Read input from the request
-    const { idea } = await req.json();
-    console.log("💡 Website idea received:", idea);
-
-    // Send request to OpenAI
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "user",
-            content: `Generate a complete responsive HTML and CSS website for this idea: "${idea}". Return only clean HTML.`,
-          },
-        ],
-      }),
+    const completion = await client.responses.create({
+      model: "gpt-4o-mini",
+      input: `Create a simple, styled HTML landing page for this idea: ${prompt}`,
     });
 
-    const raw = await response.text();
-    console.log("📜 OpenAI raw response:", raw);
+    const html = completion.output[0]?.content[0]?.text || "<h2>Error: No output received</h2>";
 
-    if (!response.ok) {
-      return new Response(
-        JSON.stringify({
-          error: "OpenAI request failed",
-          status: response.status,
-          details: raw,
-        }),
-        { status: 500 }
-      );
-    }
-
-    const data = JSON.parse(raw);
-    const html = data.choices?.[0]?.message?.content || "<h1>Error: No HTML returned</h1>";
-
-    return new Response(JSON.stringify({ html }), { status: 200 });
+    return new Response(JSON.stringify({ html }), {
+      headers: { "Content-Type": "application/json" },
+      status: 200,
+    });
   } catch (error) {
-    console.error("💥 API route crashed:", error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500 }
-    );
+    console.error("API error:", error);
+    return new Response(JSON.stringify({ error: "Failed to generate site." }), { status: 500 });
   }
 }
