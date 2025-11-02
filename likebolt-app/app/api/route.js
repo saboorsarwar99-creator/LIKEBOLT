@@ -1,15 +1,26 @@
 export async function POST(req) {
   try {
-    const { idea } = await req.json();
+    // Log to confirm function runs
+    console.log("✅ API route reached");
 
-    if (!process.env.OPENAI_API_KEY) {
-      console.error("❌ No OpenAI API key found in environment variables");
+    // Log if the API key exists
+    const apiKeyExists = !!process.env.OPENAI_API_KEY;
+    console.log("🔑 OPENAI_API_KEY exists:", apiKeyExists);
+
+    if (!apiKeyExists) {
       return new Response(
-        JSON.stringify({ error: "Server: Missing API key" }),
+        JSON.stringify({
+          error: "Missing OpenAI API Key on server",
+        }),
         { status: 500 }
       );
     }
 
+    // Read input from the request
+    const { idea } = await req.json();
+    console.log("💡 Website idea received:", idea);
+
+    // Send request to OpenAI
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -21,34 +32,34 @@ export async function POST(req) {
         messages: [
           {
             role: "user",
-            content: `Generate a simple HTML and CSS website for this idea: ${idea}. Return only clean HTML.`,
+            content: `Generate a complete responsive HTML and CSS website for this idea: "${idea}". Return only clean HTML.`,
           },
         ],
       }),
     });
 
     const raw = await response.text();
-    console.log("📜 OpenAI status:", response.status);
-    console.log("📜 OpenAI body:", raw);
+    console.log("📜 OpenAI raw response:", raw);
 
     if (!response.ok) {
       return new Response(
-        JSON.stringify({ error: "OpenAI request failed", details: raw }),
+        JSON.stringify({
+          error: "OpenAI request failed",
+          status: response.status,
+          details: raw,
+        }),
         { status: 500 }
       );
     }
 
     const data = JSON.parse(raw);
+    const html = data.choices?.[0]?.message?.content || "<h1>Error: No HTML returned</h1>";
 
-    return new Response(
-      JSON.stringify({ html: data.choices[0].message.content }),
-      { status: 200 }
-    );
-
+    return new Response(JSON.stringify({ html }), { status: 200 });
   } catch (error) {
-    console.error("💥 Server error:", error);
+    console.error("💥 API route crashed:", error);
     return new Response(
-      JSON.stringify({ error: "Server crashed", details: error.message }),
+      JSON.stringify({ error: error.message }),
       { status: 500 }
     );
   }
