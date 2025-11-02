@@ -4,18 +4,17 @@ export async function POST(req) {
   try {
     const { prompt } = await req.json();
 
-    console.log("DEBUG: API key loaded?", !!process.env.OPENAI_API_KEY);
+    const key = process.env.OPENAI_API_KEY;
+    console.log("DEBUG: OPENAI_API_KEY starts with:", key ? key.substring(0, 8) : "MISSING");
 
-    if (!process.env.OPENAI_API_KEY) {
+    if (!key) {
       return new Response(
-        JSON.stringify({ error: "Missing OpenAI API key on server" }),
+        JSON.stringify({ error: "API key missing on server" }),
         { status: 500 }
       );
     }
 
-    const client = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
+    const client = new OpenAI({ apiKey: key });
 
     const completion = await client.chat.completions.create({
       model: "gpt-4o-mini",
@@ -23,6 +22,7 @@ export async function POST(req) {
     });
 
     const html = completion.choices[0]?.message?.content || "<p>Something went wrong.</p>";
+
     return new Response(html, {
       status: 200,
       headers: { "Content-Type": "text/html" },
