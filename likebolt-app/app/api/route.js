@@ -1,18 +1,16 @@
 export async function POST(req) {
   try {
-    const { prompt } = await req.json();
+    const { idea } = await req.json();
 
-    // Check if the API key exists
     if (!process.env.OPENAI_API_KEY) {
-      console.error("❌ No OPENAI_API_KEY found in environment variables");
+      console.error("❌ No OpenAI API key found in environment variables");
       return new Response(
-        JSON.stringify({ error: "Server: No OpenAI API key found" }),
+        JSON.stringify({ error: "Server: Missing API key" }),
         { status: 500 }
       );
     }
 
-    // Send request to OpenAI
-    const r = await fetch("https://api.openai.com/v1/chat/completions", {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -20,34 +18,37 @@ export async function POST(req) {
       },
       body: JSON.stringify({
         model: "gpt-4o-mini",
-        messages: [{ role: "user", content: prompt }],
+        messages: [
+          {
+            role: "user",
+            content: `Generate a simple HTML and CSS website for this idea: ${idea}. Return only clean HTML.`,
+          },
+        ],
       }),
     });
 
-    // Log the response for debugging
-    const raw = await r.text();
-    console.error("📜 OpenAI status:", r.status);
-    console.error("📜 OpenAI body:", raw);
+    const raw = await response.text();
+    console.log("📜 OpenAI status:", response.status);
+    console.log("📜 OpenAI body:", raw);
 
-    // Handle errors
-    if (!r.ok) {
+    if (!response.ok) {
       return new Response(
         JSON.stringify({ error: "OpenAI request failed", details: raw }),
         { status: 500 }
       );
     }
 
-    // Parse and send result
     const data = JSON.parse(raw);
+
     return new Response(
-      JSON.stringify({ result: data.choices[0].message.content }),
+      JSON.stringify({ html: data.choices[0].message.content }),
       { status: 200 }
     );
 
-  } catch (e) {
-    console.error("💥 Server error:", e);
+  } catch (error) {
+    console.error("💥 Server error:", error);
     return new Response(
-      JSON.stringify({ error: "Server crashed", details: e.message }),
+      JSON.stringify({ error: "Server crashed", details: error.message }),
       { status: 500 }
     );
   }
